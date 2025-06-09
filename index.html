@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>수강생 개강안내 자동 생성 (fetch 방식)</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      padding: 40px;
+      line-height: 1.8;
+    }
+    input {
+      padding: 6px;
+      width: 300px;
+      margin: 10px 0;
+    }
+    button {
+      padding: 6px 12px;
+      margin-left: 10px;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 20px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📘 SBS컴퓨터아트학원 개강안내 생성기</h2>
+
+  <label for="subjectInput">과목명을 콤마(,)로 입력하세요:</label><br>
+  <input type="text" id="subjectInput" placeholder="예: 오전일러스트, 오전포토샵">
+  <button onclick="generate()">생성</button>
+
+  <h3>📝 안내문 자동 생성 결과</h3>
+  <pre id="output"></pre>
+
+  <script>
+    let courseData = [];
+
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTYdUa8OjpFuhycdQ-NWK4EciYYt1CH0YykLHn9hlE5yCK1SKsYgHzWHkZghd3bnkBL_WiGAoyFGp3t/pub?output=csv';
+
+    const roomLinks = {
+      'A': 'https://discord.gg/UbPVxWgcct',
+      'B': 'https://discord.gg/VBaPncjxXe',
+      'C': 'https://discord.gg/2WcQwuzvxy',
+      'D': 'https://discord.gg/bHxVuv3AxS',
+      'E': 'https://discord.gg/AsV8M6P79c',
+      'F': 'https://discord.gg/cEDxpq6aVS',
+      'G': 'https://discord.gg/KrHJzzErWt',
+      'H': '비대면 수업이 불가능한 강의장입니다.'
+    };
+
+    const scheduleToPeriod = {
+      "월수금9": "06.13~07.07",
+      "화목금9": "06.12~07.04",
+      "월수금10": "06.13~07.09",
+      "화목금10": "06.12~07.08",
+      "월목": "06.12~07.09",
+      "금": "06.13~07.04",
+      "월화수목": "05.13~06.10"
+    };
+
+    async function fetchCSV() {
+      const response = await fetch(csvUrl);
+      const text = await response.text();
+      const rows = text.trim().split('\n');
+      const headers = rows[0].split(',');
+      courseData = rows.slice(1).map(row => {
+        const values = row.split(',');
+        const entry = {};
+        headers.forEach((header, i) => {
+          entry[header.trim()] = values[i]?.trim();
+        });
+        return entry;
+      });
+    }
+
+    async function generate() {
+      if (courseData.length === 0) {
+        await fetchCSV();
+      }
+
+      const input = document.getElementById("subjectInput").value;
+      const subjects = input.split(',').map(s => s.trim()).filter(Boolean);
+      if (subjects.length === 0) {
+        document.getElementById("output").textContent = "과목명을 입력해주세요.";
+        return;
+      }
+
+      let message = `📢 SBS컴퓨터아트학원 안산점 개강안내\n\n`;
+
+      subjects.forEach(subject => {
+        const row = courseData.find(item => item['과목명'] === subject);
+        if (!row) {
+          message += `⚠ 과목 "${subject}"의 정보를 찾을 수 없습니다.\n\n`;
+          return;
+        }
+
+        const schedule = row['시간표유형'];
+        const period = scheduleToPeriod[schedule] || '수강기간 미정';
+        const time = row['수업시간'] || '시간 미정';
+        const room = row['강의장']?.toUpperCase();
+        const link = roomLinks[room] || '비대면 링크 정보 없음';
+
+        message += `
+· 수강과목 : ${row['과목명']}
+· 수강기간 : ${period}
+· 수강시간 : ${time}
+· 강의실 : 3층 ${room}강의장 
+· 비대면링크 : ${room}강의장 ${link}
+· 대면/비대면 : 대면\n\n`;
+      });
+
+      message += `⚠ 변동 사항 발생 시, 수업 전 재 안내 드리겠습니다
+
+확인 후에 대면/비대면/참석 여부 확인 답장 부탁드립니다😊
+
+격일시간표/온라인강의/비대면링크/교재구입등 자세한 내용은 공지사항 링크를 확인해주세요!
+
+▼SBS아카데미컴퓨터아트학원 안산지점 인스타그램
+https://www.instagram.com/sbsacademy_ansan/
+팔로우 하시고 학원소식, 무료특강일정, 취업정보를 확인하시길 바랍니다 :)`;
+
+      document.getElementById("output").textContent = message;
+    }
+
+  </script>
+
+</body>
+</html>
